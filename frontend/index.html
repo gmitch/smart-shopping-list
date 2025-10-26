@@ -1,84 +1,207 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    </head>
-<body>
-
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- All your DOM Elements are the same ---
+        // --- DOM Elements ---
         const configSection = document.getElementById('config-section');
         const appSection = document.getElementById('app-section');
-        // ... etc ...
+        const configForm = document.getElementById('config-form');
+        const apiUrlInput = document.getElementById('apiUrl');
+        const apiKeyInput = document.getElementById('apiKey');
+        const addItemForm = document.getElementById('add-item-form');
+        const itemNameInput = document.getElementById('item-name-input');
+        const shoppingListUl = document.getElementById('shopping-list');
+        const storeFilter = document.getElementById('store-filter');
+        const loadingDiv = document.getElementById('loading');
+        const editConfigBtn = document.getElementById('edit-config-btn');
 
+        // --- State ---
         let allItems = [];
         let settings = {};
-        let pollInterval = null; // --- NEW: Variable to hold our timer ---
+        let pollingIntervalId = null; // Variable to hold our polling timer
 
-        // --- All utility functions are the same ---
-        const loadSettings = () => { /* ... */ };
-        const saveSettings = (apiUrl, apiKey) => { /* ... */ };
+        // --- Core Functions ---
+        const loadSettings = () => {
+            const savedSettings = localStorage.getItem('shoppingListSettings');
+            if (savedSettings) {
+                settings = JSON.parse(savedSettings);
+                apiUrlInput.value = settings.apiUrl;
+                apiKeyInput.value = settings.apiKey;
+                showAppView();
+            } else {
+                showConfigView();
+            }
+        };
+
+        const saveSettings = (apiUrl, apiKey) => {
+            settings = { apiUrl, apiKey };
+            localStorage.setItem('shoppingListSettings', JSON.stringify(settings));
+        };
         
         const showConfigView = () => {
+            stopPolling(); // Stop polling if we go back to the config screen
             configSection.style.display = 'block';
             appSection.style.display = 'none';
-            if (pollInterval) clearInterval(pollInterval); // --- NEW: Stop polling when going to config ---
         };
 
         const showAppView = async () => {
             configSection.style.display = 'none';
             appSection.style.display = 'block';
-            await fetchAndRenderList(true); // Initial fetch shows loading spinner
-
-            // --- NEW: Start polling every 5 seconds ---
-            if (pollInterval) clearInterval(pollInterval); // Clear any old timer
-            pollInterval = setInterval(() => {
-                fetchAndRenderList(false); // Background fetches don't show loading spinner
-            }, 5000); // 5000 milliseconds = 5 seconds
+            await fetchAndRenderList();
+            startPolling(); // Start polling after the first successful load
         };
 
-        // --- UPDATED: fetchAndRenderList now accepts a parameter ---
-        const fetchAndRenderList = async (showLoading = false) => {
+        const fetchAndRenderList = async (isPolling = false) => {
             if (!settings.apiUrl || !settings.apiKey) return;
-            if (showLoading) {
+            
+            // Only show the main "Loading..." message on the initial load
+            if (!isPolling) {
                 loadingDiv.style.display = 'block';
                 shoppingListUl.innerHTML = '';
             }
-            
+
             try {
                 const response = await fetch(settings.apiUrl, {
                     method: 'GET',
                     headers: { 'x-api-key': settings.apiKey }
                 });
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+                if (!response.ok) {
+                    // If the fetch fails, stop polling to avoid repeated errors
+                    stopPolling();
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
                 
-                const newItems = await response.json();
-                
-                // Only re-render if the data has actually changed
-                if (JSON.stringify(newItems) !== JSON.stringify(allItems)) {
-                    allItems = newItems;
-                    renderList();
+                allItems = await response.json();
+                renderList();
+
+                // Only repopulate the filter on the initial load to keep the user's selection
+                if (!isPolling) {
                     populateStoreFilter();
                 }
 
             } catch (error) {
                 console.error("Failed to fetch list:", error);
-                // Don't alert on background refresh failures
-                if (showLoading) alert("Could not fetch the shopping list.");
+                if (!isPolling) {
+                    alert("Could not fetch the shopping list. Check API URL or connection.");
+                }
             } finally {
-                if (showLoading) loadingDiv.style.display = 'none';
+                if (!isPolling) {
+                    loadingDiv.style.display = 'none';
+                }
+            }
+        };
+        
+        // --- Polling Functions (NEW) ---
+        const startPolling = () => {
+            // Clear any existing polling to prevent multiple timers
+            stopPolling(); 
+            // Set an interval to call fetchAndRenderList every 5 seconds
+            pollingIntervalId = setInterval(() => fetchAndRenderList(true), 5000);
+        };
+
+        const stopPolling = () => {
+            clearInterval(pollingIntervalId);
+        };
+
+        const renderList = () => {
+            shoppingListUl.innerHTML = '';
+            const selectedStore = storeFilter.value;
+            const filteredItems = selectedStore === 'all' ? allItems : allItems.filter(item => item.preferredStore === selectedStore);
+            if (filteredItems.length === 0) {
+                shoppingListUl.innerHTML = '<li>No items to show.</li>';
+                return;
+            }
+            filteredItems.forEach(item => {
+                const li = document.createElement('li');
+                li.className = item.status === 'Have' ? 'have' : '';
+                li.dataset.itemName = item.itemName;
+                li.dataset.itemStatus = item.status;
+
+                const itemNameSpan = document.createElement('span');
+                itemNameSpan.textContent = item.itemName;
+                const storeSpan = document.createElement('span');
+                storeSpan.className = 'item-store';
+                storeSpan.textContent = item.preferredStore;
+
+                li.appendChild(itemNameSpan);
+                li.appendChild(storeSpan);
+                shoppingListUl.appendChild(li);
+            });
+        };
+        
+        const populateStoreFilter = () => {
+            const stores = [...new Set(allItems.map(item => item.preferredStore))];
+            while (storeFilter.options.length > 1) { storeFilter.remove(1); }
+            stores.sort().forEach(store => {
+                if (store) {
+                    const option = new Option(store, store);
+                    storeFilter.appendChild(option);
+                }
+            });
+        };
+
+        const toggleItemStatus = async (itemElement) => {
+            stopPolling(); // Pause polling while we make a change
+            const itemName = itemElement.dataset.itemName;
+            const currentStatus = itemElement.dataset.itemStatus;
+            const newStatus = currentStatus === 'Need' ? 'Have' : 'Need';
+
+            itemElement.classList.add('updating');
+
+            try {
+                const response = await fetch(settings.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey },
+                    body: JSON.stringify({ itemName, status: newStatus })
+                });
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                await fetchAndRenderList(); // Refresh the list immediately
+            } catch (error) {
+                console.error("Failed to update status:", error);
+                alert("Could not update item status. Please try again.");
+                itemElement.classList.remove('updating');
+            } finally {
+                startPolling(); // Resume polling after the update is complete
             }
         };
 
-        // --- The rest of your JavaScript is exactly the same ---
-        const renderList = () => { /* ... */ };
-        const populateStoreFilter = () => { /* ... */ };
-        const toggleItemStatus = async (itemElement) => { /* ... */ };
-        // ... all event listeners ...
+        // --- Event Listeners ---
+        configForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveSettings(apiUrlInput.value.trim(), apiKeyInput.value.trim());
+            showAppView();
+        });
+
+        addItemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            stopPolling(); // Pause polling
+            const itemName = itemNameInput.value.trim();
+            if (!itemName) return;
+            try {
+                await fetch(settings.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey },
+                    body: JSON.stringify({ itemName })
+                });
+                itemNameInput.value = '';
+                await fetchAndRenderList();
+            } catch (error) {
+                console.error("Failed to add item:", error);
+                alert("Could not add the item.");
+            } finally {
+                startPolling(); // Resume polling
+            }
+        });
+
+        storeFilter.addEventListener('change', renderList);
+        editConfigBtn.addEventListener('click', showConfigView);
+
+        shoppingListUl.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (li && li.dataset.itemName) {
+                toggleItemStatus(li);
+            }
+        });
 
         loadSettings();
     });
 </script>
-
-</body>
-</html>
