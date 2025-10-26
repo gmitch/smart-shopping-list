@@ -1,5 +1,6 @@
 # Dependencies
 /node_modules
+/cloud-function/node_modules
 
 # Credentials & Secrets
 *.json
