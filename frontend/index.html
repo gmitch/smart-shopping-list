@@ -1,3 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Shopping List</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #444;
+            margin-top: 0;
+        }
+        input[type="text"],
+        input[type="password"],
+        select,
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-sizing: border-box; /* Important */
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        #edit-config-btn {
+            width: auto;
+            padding: 8px 12px;
+            margin-bottom: 0;
+            background-color: #6c757d;
+        }
+        #shopping-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #shopping-list li {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #shopping-list li:hover {
+            background-color: #f9f9f9;
+        }
+        #shopping-list li.have {
+            text-decoration: line-through;
+            color: #888;
+        }
+        #shopping-list li.updating {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .item-store {
+            font-size: 0.8em;
+            color: #777;
+            background-color: #eee;
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+        #loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #777;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Smart Shopping List</h1>
+
+        <section id="config-section" style="display: none;">
+            <h2>Settings</h2>
+            <form id="config-form">
+                <label for="apiUrl">API URL:</label>
+                <input type="text" id="apiUrl" required>
+                <label for="apiKey">API Key:</label>
+                <input type="password" id="apiKey" required>
+                <button type="submit">Save and Load List</button>
+            </form>
+        </section>
+
+        <section id="app-section" style="display: none;">
+            <div id="app-header">
+                <select id="store-filter">
+                    <option value="all">All Stores</option>
+                </select>
+                <button id="edit-config-btn">Settings</button>
+            </div>
+
+            <form id="add-item-form">
+                <input type="text" id="item-name-input" placeholder="Add a new item..." autocomplete="off">
+                <button type="submit">Add Item</button>
+            </form>
+            
+            <div id="loading" style="display: none;">Loading...</div>
+            <ul id="shopping-list"></ul>
+        </section>
+    </div>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- DOM Elements ---
@@ -205,3 +346,6 @@
         loadSettings();
     });
 </script>
+
+</body>
+</html>
