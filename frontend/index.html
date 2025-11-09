@@ -3,349 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Shopping List</title>
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title>Smart Shopping & Menu</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            width: 100%;
-            max-width: 500px;
-            background: #fff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #444;
-            margin-top: 0;
-        }
-        input[type="text"],
-        input[type="password"],
-        select,
-        button {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            box-sizing: border-box; /* Important */
-            font-size: 16px;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #app-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        #edit-config-btn {
-            width: auto;
-            padding: 8px 12px;
-            margin-bottom: 0;
-            background-color: #6c757d;
-        }
-        #shopping-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        #shopping-list li {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        #shopping-list li:hover {
-            background-color: #f9f9f9;
-        }
-        #shopping-list li.have {
-            text-decoration: line-through;
-            color: #888;
-        }
-        #shopping-list li.updating {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-        .item-store {
-            font-size: 0.8em;
-            color: #777;
-            background-color: #eee;
-            padding: 3px 8px;
-            border-radius: 10px;
-        }
-        #loading {
-            text-align: center;
-            padding: 20px;
-            font-style: italic;
-            color: #777;
-        }
-        form {
-            margin-bottom: 20px;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 600px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #444; margin-top: 0; padding: 20px 20px 0 20px;}
+        .content { padding: 0 25px 25px 25px; }
+        input, select, button { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
+        nav { display: flex; border-bottom: 1px solid #ddd; }
+        nav button { flex: 1; background: #f9f9f9; color: #555; border: none; border-bottom: 3px solid transparent; border-radius: 0; margin: 0; padding: 15px; font-size: 16px; }
+        nav button.active { border-bottom: 3px solid #007bff; font-weight: bold; color: #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        #app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        #shopping-list { list-style: none; padding: 0; margin: 0; }
+        #shopping-list li { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background-color 0.2s; }
+        #shopping-list li:hover { background-color: #f9f9f9; }
+        #shopping-list li.have { text-decoration: line-through; color: #888; }
+        #shopping-list li.updating { opacity: 0.5; pointer-events: none; }
+        .item-store { font-size: 0.8em; color: #777; background-color: #eee; padding: 3px 8px; border-radius: 10px; }
+        #menu-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+        #menu-table th, #menu-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        #menu-table th { background-color: #f2f2f2; }
+        #ingredients-check-list { list-style: none; padding: 0; columns: 2; -webkit-columns: 2; -moz-columns: 2; }
+        #ingredients-check-list li { padding: 8px; cursor: pointer; border-radius: 5px; transition: background-color 0.2s; }
+        #ingredients-check-list li:hover { background-color: #f0f0f0; }
+        /* --- NEW Visual Indicators --- */
+        #ingredients-check-list li.have::before { content: '✓ '; color: #28a745; font-weight: bold; }
+        #ingredients-check-list li.need::before { content: '✗ '; color: #dc3545; font-weight: bold; }
+        #ingredients-check-list li.unknown::before { content: '? '; color: #6c757d; font-weight: bold; }
+        #loading { text-align: center; padding: 20px; font-style: italic; color: #777; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Smart Shopping List</h1>
+<div class="container">
+    <header>
+        <h1>Smart Shopping & Menu</h1>
+        <nav>
+            <button id="tab-btn-list" class="active">Shopping List</button>
+            <button id="tab-btn-menu">Menu</button>
+            <button id="tab-btn-settings">Settings</button>
+        </nav>
+    </header>
 
-        <section id="config-section" style="display: none;">
+    <main class="content">
+        <div id="tab-content-list" class="tab-content active">
+            <div id="app-header">
+                <select id="store-filter">
+                    <option value="all">All Stores</option>
+                </select>
+            </div>
+            <form id="add-item-form">
+                <input type="text" id="item-name-input" placeholder="Add a new item..." autocomplete="off">
+                <button type="submit">Add Item</button>
+            </form>
+            <div id="loading-list" style="display: none;">Loading...</div>
+            <ul id="shopping-list"></ul>
+        </div>
+
+        <div id="tab-content-menu" class="tab-content">
+            <h2>This Week's Menu</h2>
+            <div id="loading-menu" style="display: none;">Loading Menu...</div>
+            <table id="menu-table"></table>
+            <h2>Ingredients Check</h2>
+            <div id="loading-ingredients" style="display: none;">Generating Ingredients...</div>
+            <ul id="ingredients-check-list"></ul>
+        </div>
+
+        <div id="tab-content-settings" class="tab-content">
             <h2>Settings</h2>
             <form id="config-form">
                 <label for="apiUrl">API URL:</label>
                 <input type="text" id="apiUrl" required>
                 <label for="apiKey">API Key:</label>
                 <input type="password" id="apiKey" required>
-                <button type="submit">Save and Load List</button>
+                <button type="submit">Save Settings</button>
             </form>
-        </section>
-
-        <section id="app-section" style="display: none;">
-            <div id="app-header">
-                <select id="store-filter">
-                    <option value="all">All Stores</option>
-                </select>
-                <button id="edit-config-btn">Settings</button>
-            </div>
-
-            <form id="add-item-form">
-                <input type="text" id="item-name-input" placeholder="Add a new item..." autocomplete="off">
-                <button type="submit">Add Item</button>
-            </form>
-            
-            <div id="loading" style="display: none;">Loading...</div>
-            <ul id="shopping-list"></ul>
-        </section>
-    </div>
-
+        </div>
+    </main>
+</div>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- DOM Elements ---
-        const configSection = document.getElementById('config-section');
-        const appSection = document.getElementById('app-section');
-        const configForm = document.getElementById('config-form');
-        const apiUrlInput = document.getElementById('apiUrl');
-        const apiKeyInput = document.getElementById('apiKey');
-        const addItemForm = document.getElementById('add-item-form');
-        const itemNameInput = document.getElementById('item-name-input');
-        const shoppingListUl = document.getElementById('shopping-list');
-        const storeFilter = document.getElementById('store-filter');
-        const loadingDiv = document.getElementById('loading');
-        const editConfigBtn = document.getElementById('edit-config-btn');
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Elements ---
+    const apiUrlInput = document.getElementById('apiUrl');
+    const apiKeyInput = document.getElementById('apiKey');
+    const tabButtons = document.querySelectorAll('nav button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const addItemForm = document.getElementById('add-item-form');
+    const itemNameInput = document.getElementById('item-name-input');
+    const shoppingListUl = document.getElementById('shopping-list');
+    const storeFilter = document.getElementById('store-filter');
+    const loadingListDiv = document.getElementById('loading-list');
+    const menuTable = document.getElementById('menu-table');
+    const ingredientsListUl = document.getElementById('ingredients-check-list');
+    const loadingMenuDiv = document.getElementById('loading-menu');
 
-        // --- State ---
-        let allItems = [];
-        let settings = {};
-        let pollingIntervalId = null; // Variable to hold our polling timer
+    // --- State ---
+    let settings = {};
 
-        // --- Core Functions ---
-        const loadSettings = () => {
-            const savedSettings = localStorage.getItem('shoppingListSettings');
-            if (savedSettings) {
-                settings = JSON.parse(savedSettings);
-                apiUrlInput.value = settings.apiUrl;
-                apiKeyInput.value = settings.apiKey;
-                showAppView();
-            } else {
-                showConfigView();
-            }
-        };
+    // --- Core Functions ---
+    const loadSettings = () => {
+        const savedSettings = localStorage.getItem('shoppingListSettings');
+        if (savedSettings) {
+            settings = JSON.parse(savedSettings);
+            apiUrlInput.value = settings.apiUrl;
+            apiKeyInput.value = settings.apiKey;
+            fetchAndRenderList(); // Load initial tab content
+        } else {
+            switchTab('settings');
+        }
+    };
 
-        const saveSettings = (apiUrl, apiKey) => {
-            settings = { apiUrl, apiKey };
-            localStorage.setItem('shoppingListSettings', JSON.stringify(settings));
-        };
-        
-        const showConfigView = () => {
-            stopPolling(); // Stop polling if we go back to the config screen
-            configSection.style.display = 'block';
-            appSection.style.display = 'none';
-        };
+    const saveSettings = (apiUrl, apiKey) => {
+        settings = { apiUrl, apiKey };
+        localStorage.setItem('shoppingListSettings', JSON.stringify(settings));
+        alert('Settings saved!');
+        switchTab('list');
+        fetchAndRenderList();
+    };
 
-        const showAppView = async () => {
-            configSection.style.display = 'none';
-            appSection.style.display = 'block';
-            await fetchAndRenderList();
-            startPolling(); // Start polling after the first successful load
-        };
-
-        const fetchAndRenderList = async (isPolling = false) => {
-            if (!settings.apiUrl || !settings.apiKey) return;
-            
-            // Only show the main "Loading..." message on the initial load
-            if (!isPolling) {
-                loadingDiv.style.display = 'block';
-                shoppingListUl.innerHTML = '';
-            }
-
-            try {
-                const response = await fetch(settings.apiUrl, {
-                    method: 'GET',
-                    headers: { 'x-api-key': settings.apiKey }
-                });
-
-                if (!response.ok) {
-                    // If the fetch fails, stop polling to avoid repeated errors
-                    stopPolling();
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                
-                allItems = await response.json();
-                renderList();
-
-                // Only repopulate the filter on the initial load to keep the user's selection
-                if (!isPolling) {
-                    populateStoreFilter();
-                }
-
-            } catch (error) {
-                console.error("Failed to fetch list:", error);
-                if (!isPolling) {
-                    alert("Could not fetch the shopping list. Check API URL or connection.");
-                }
-            } finally {
-                if (!isPolling) {
-                    loadingDiv.style.display = 'none';
-                }
-            }
-        };
-        
-        // --- Polling Functions (NEW) ---
-        const startPolling = () => {
-            // Clear any existing polling to prevent multiple timers
-            stopPolling(); 
-            // Set an interval to call fetchAndRenderList every 5 seconds
-            pollingIntervalId = setInterval(() => fetchAndRenderList(true), 5000);
-        };
-
-        const stopPolling = () => {
-            clearInterval(pollingIntervalId);
-        };
-
-        const renderList = () => {
-            shoppingListUl.innerHTML = '';
-            const selectedStore = storeFilter.value;
-            const filteredItems = selectedStore === 'all' ? allItems : allItems.filter(item => item.preferredStore === selectedStore);
-            if (filteredItems.length === 0) {
-                shoppingListUl.innerHTML = '<li>No items to show.</li>';
-                return;
-            }
-            filteredItems.forEach(item => {
-                const li = document.createElement('li');
-                li.className = item.status === 'Have' ? 'have' : '';
-                li.dataset.itemName = item.itemName;
-                li.dataset.itemStatus = item.status;
-
-                const itemNameSpan = document.createElement('span');
-                itemNameSpan.textContent = item.itemName;
-                const storeSpan = document.createElement('span');
-                storeSpan.className = 'item-store';
-                storeSpan.textContent = item.preferredStore;
-
-                li.appendChild(itemNameSpan);
-                li.appendChild(storeSpan);
-                shoppingListUl.appendChild(li);
+    const switchTab = (tabId) => {
+        tabContents.forEach(content => content.classList.remove('active'));
+        tabButtons.forEach(button => button.classList.remove('active'));
+        document.getElementById(`tab-content-${tabId}`).classList.add('active');
+        document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+        // Fetch data if switching to a new tab that needs it
+        if (tabId === 'menu' && menuTable.innerHTML === '') fetchAndRenderMenu();
+    };
+    
+    // --- Shopping List Functions ---
+    const fetchAndRenderList = async () => {
+        if (!settings.apiUrl || !settings.apiKey) return;
+        loadingListDiv.style.display = 'block';
+        shoppingListUl.innerHTML = '';
+        try {
+            const response = await fetch(`${settings.apiUrl}?list=items`, {
+                headers: { 'x-api-key': settings.apiKey }
             });
-        };
-        
-        const populateStoreFilter = () => {
-            const stores = [...new Set(allItems.map(item => item.preferredStore))];
-            while (storeFilter.options.length > 1) { storeFilter.remove(1); }
-            stores.sort().forEach(store => {
-                if (store) {
-                    const option = new Option(store, store);
-                    storeFilter.appendChild(option);
-                }
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            const allItems = await response.json();
+            renderList(allItems);
+            populateStoreFilter(allItems);
+        } catch (error) {
+            console.error("Failed to fetch list:", error);
+            alert("Could not fetch the shopping list.");
+        } finally {
+            loadingListDiv.style.display = 'none';
+        }
+    };
+
+    const renderList = (allItems) => {
+        shoppingListUl.innerHTML = '';
+        const selectedStore = storeFilter.value;
+        const filteredItems = selectedStore === 'all' ? allItems : allItems.filter(item => item.preferredStore === selectedStore);
+        if (filteredItems.length === 0) {
+            shoppingListUl.innerHTML = '<li>No items to show.</li>'; return;
+        }
+        filteredItems.forEach(item => {
+            const li = document.createElement('li');
+            li.className = item.status === 'Have' ? 'have' : '';
+            li.dataset.itemName = item.itemName;
+            li.dataset.itemStatus = item.status;
+            const itemNameSpan = document.createElement('span');
+            itemNameSpan.textContent = item.itemName;
+            const storeSpan = document.createElement('span');
+            storeSpan.className = 'item-store';
+            storeSpan.textContent = item.preferredStore;
+            li.appendChild(itemNameSpan); li.appendChild(storeSpan);
+            shoppingListUl.appendChild(li);
+        });
+    };
+    
+    const populateStoreFilter = (allItems) => {
+        const stores = [...new Set(allItems.map(item => item.preferredStore))];
+        while (storeFilter.options.length > 1) { storeFilter.remove(1); }
+        stores.sort().forEach(store => {
+            if (store) storeFilter.appendChild(new Option(store, store));
+        });
+    };
+
+    const updateItemStatus = async (itemName, newStatus) => {
+         try {
+            const response = await fetch(settings.apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey },
+                body: JSON.stringify({ itemName, status: newStatus })
             });
-        };
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            // Refresh both lists for consistency
+            fetchAndRenderList();
+            fetchAndRenderMenu();
+        } catch (error) {
+            console.error("Failed to update status:", error);
+            alert("Could not update item status.");
+        }
+    };
+    
+    // --- Menu & Ingredients Functions ---
+    const fetchAndRenderMenu = async () => {
+        if (!settings.apiUrl || !settings.apiKey) return;
+        loadingMenuDiv.style.display = 'block';
+        ingredientsListUl.innerHTML = '';
+        menuTable.innerHTML = '';
+        try {
+            const response = await fetch(`${settings.apiUrl}?list=menu`, {
+                headers: { 'x-api-key': settings.apiKey }
+            });
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            const { menu, ingredients } = await response.json();
+            renderMenu(menu);
+            renderIngredients(ingredients);
+        } catch (error) {
+            console.error("Failed to fetch menu:", error);
+            alert("Could not fetch the menu and ingredients.");
+        } finally {
+            loadingMenuDiv.style.display = 'none';
+        }
+    };
 
-        const toggleItemStatus = async (itemElement) => {
-            stopPolling(); // Pause polling while we make a change
-            const itemName = itemElement.dataset.itemName;
-            const currentStatus = itemElement.dataset.itemStatus;
-            const newStatus = currentStatus === 'Need' ? 'Have' : 'Need';
-
-            itemElement.classList.add('updating');
-
-            try {
-                const response = await fetch(settings.apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey },
-                    body: JSON.stringify({ itemName, status: newStatus })
-                });
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                await fetchAndRenderList(); // Refresh the list immediately
-            } catch (error) {
-                console.error("Failed to update status:", error);
-                alert("Could not update item status. Please try again.");
-                itemElement.classList.remove('updating');
-            } finally {
-                startPolling(); // Resume polling after the update is complete
-            }
-        };
-
-        // --- Event Listeners ---
-        configForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            saveSettings(apiUrlInput.value.trim(), apiKeyInput.value.trim());
-            showAppView();
+    const renderMenu = (menu) => {
+        let html = '<thead><tr><th>Day</th><th>Main</th><th>Side</th></tr></thead><tbody>';
+        menu.forEach(item => {
+            html += `<tr><td>${item.day}</td><td>${item.main}</td><td>${item.side}</td></tr>`;
         });
-
-        addItemForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            stopPolling(); // Pause polling
-            const itemName = itemNameInput.value.trim();
-            if (!itemName) return;
-            try {
-                await fetch(settings.apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey },
-                    body: JSON.stringify({ itemName })
-                });
-                itemNameInput.value = '';
-                await fetchAndRenderList();
-            } catch (error) {
-                console.error("Failed to add item:", error);
-                alert("Could not add the item.");
-            } finally {
-                startPolling(); // Resume polling
-            }
+        html += '</tbody>';
+        menuTable.innerHTML = html;
+    };
+    
+    const renderIngredients = (ingredients) => {
+        ingredientsListUl.innerHTML = '';
+        if (ingredients.length === 0) {
+            ingredientsListUl.innerHTML = '<li>No ingredients to check.</li>'; return;
+        }
+        ingredients.forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = item.name;
+            li.className = item.status.toLowerCase();
+            li.dataset.itemName = item.name;
+            li.dataset.itemStatus = item.status;
+            ingredientsListUl.appendChild(li);
         });
+    };
 
-        storeFilter.addEventListener('change', renderList);
-        editConfigBtn.addEventListener('click', showConfigView);
-
-        shoppingListUl.addEventListener('click', (e) => {
-            const li = e.target.closest('li');
-            if (li && li.dataset.itemName) {
-                toggleItemStatus(li);
-            }
-        });
-
-        loadSettings();
+    // --- Event Listeners ---
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => switchTab(button.id.replace('tab-btn-', '')));
     });
-</script>
 
+    document.getElementById('config-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveSettings(apiUrlInput.value.trim(), apiKeyInput.value.trim());
+    });
+
+     addItemForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const itemName = itemNameInput.value.trim();
+        if (!itemName) return;
+        try {
+            await fetch(settings.apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey },
+                body: JSON.stringify({ itemName })
+            });
+            itemNameInput.value = '';
+            fetchAndRenderList();
+        } catch (error) {
+            console.error("Failed to add item:", error);
+            alert("Could not add the item.");
+        }
+    });
+
+    shoppingListUl.addEventListener('click', (e) => {
+        const li = e.target.closest('li');
+        if (li && li.dataset.itemName) {
+            const newStatus = li.dataset.itemStatus === 'Need' ? 'Have' : 'Need';
+            updateItemStatus(li.dataset.itemName, newStatus);
+        }
+    });
+    
+    ingredientsListUl.addEventListener('click', (e) => {
+        const li = e.target.closest('li');
+        if (li && li.dataset.itemName && (li.dataset.itemStatus === 'Need' || li.dataset.itemStatus === 'Unknown')) {
+            li.classList.add('updating');
+            updateItemStatus(li.dataset.itemName, 'Have');
+        }
+    });
+
+    loadSettings();
+});
+</script>
 </body>
 </html>
