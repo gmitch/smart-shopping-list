@@ -3,11 +3,12 @@ const cors = require('cors')({origin: true});
 const { GoogleAuth } = require('google-auth-library');
 
 // --- Configuration ---
-const SPREADSHEET_ID = '1S_HTpPJ3AaHdPZ9aiydzVUw7B21mTRR1_mutRg_g_pg'; // 👈 Replace with your Spreadsheet ID
-const KEY_FILE_PATH = './crane-groceries-4f34f257c033.json';
+// All config is now read from environment variables for security and portability.
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const SECRET_API_KEY = process.env.SECRET_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "models/gemini-2.5-flash"; // The model that works for your project
+const GEMINI_MODEL = process.env.GEMINI_MODEL;
+const KEY_FILE_PATH = process.env.KEY_FILE_PATH;
 // --- End Configuration ---
 
 const auth = new GoogleAuth({
@@ -20,7 +21,7 @@ async function getSheetsClient() {
     return google.sheets({ version: 'v4', auth: authClient });
 }
 
-// Main router function
+// Main router function (Unchanged)
 exports.shoppingListApi = (req, res) => {
     cors(req, res, async () => {
         if (req.headers['x-api-key'] !== SECRET_API_KEY) {
@@ -41,81 +42,84 @@ exports.shoppingListApi = (req, res) => {
     });
 };
 
-// --- Menu & Ingredients Function (with smarter matching) ---
+// --- Menu & Ingredients Function (with Recipe lookup) ---
 async function getMenuAndIngredients(req, res) {
     try {
         const sheets = await getSheetsClient();
-        const [menuResponse, shoppingListResponse] = await Promise.all([
+        // 1. Fetch all three data sources in parallel
+        const [menuResponse, shoppingListResponse, recipesResponse] = await Promise.all([
             sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Menu!A2:C9' }),
-            sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Groceries!A3:B' })
+            sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Groceries!A3:B' }),
+            sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Recipes!A2:B' })
         ]);
 
         const menuRows = menuResponse.data.values || [];
         const menu = menuRows.map(row => ({ day: row[0], main: row[1] || '', side: row[2] || '' }));
         const dishes = menu.flatMap(day => [day.main, day.side]).filter(dish => dish);
 
-        if (dishes.length === 0) {
-            return res.status(200).json({ menu, ingredients: [] });
-        }
+        const recipeRows = recipesResponse.data.values || [];
+        const recipeMap = new Map(recipeRows.map(([name, ingredients]) => [name.toLowerCase(), ingredients]));
 
-        const prompt = `Generate a consolidated, de-duplicated list of grocery ingredients for the following meals: ${dishes.join(', ')}. Do not include salt, pepper, water, or cooking oil. Respond with only a comma-separated list of items.`;
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-        const requestBody = { "contents": [{ "parts": [{ "text": prompt }] }] };
+        let allIngredients = new Set();
+        let dishesForAI = [];
 
-        const geminiResponse = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
+        // 2. Check for recipes first
+        dishes.forEach(dish => {
+            const recipeIngredients = recipeMap.get(dish.toLowerCase());
+            if (recipeIngredients) {
+                recipeIngredients.split(',').forEach(ing => allIngredients.add(ing.trim()));
+            } else {
+                dishesForAI.push(dish);
+            }
         });
 
-        if (!geminiResponse.ok) {
-            const errorBody = await geminiResponse.json();
-            console.error("Full Gemini API Error Response:", JSON.stringify(errorBody, null, 2));
-            throw new Error('Gemini API request failed.');
+        // 3. If any dishes weren't in our recipe book, ask the AI
+        if (dishesForAI.length > 0) {
+            const prompt = `Generate a consolidated, de-duplicated list of grocery ingredients for the following meals: ${dishesForAI.join(', ')}. Do not include salt, pepper, water, or cooking oil. Respond with only a comma-separated list of items.`;
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            const requestBody = { "contents": [{ "parts": [{ "text": prompt }] }] };
+
+            const geminiResponse = await fetch(geminiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (geminiResponse.ok) {
+                const aiData = await geminiResponse.json();
+                const aiIngredients = (aiData.candidates && aiData.candidates[0].content && aiData.candidates[0].content.parts[0])
+                    ? aiData.candidates[0].content.parts[0].text.split(',')
+                    : [];
+                aiIngredients.forEach(ing => allIngredients.add(ing.trim()));
+            } else {
+                console.error("Gemini API Error:", await geminiResponse.json());
+            }
         }
 
-        const aiData = await geminiResponse.json();
-        const generatedIngredients = (aiData.candidates && aiData.candidates[0].content && aiData.candidates[0].content.parts[0])
-            ? aiData.candidates[0].content.parts[0].text.split(',').map(item => item.trim()).filter(item => item)
-            : [];
-
-        // --- NEW Smart Matching Logic ---
+        // 4. Cross-reference the final combined list with our shopping list
         const shoppingListItems = shoppingListResponse.data.values || [];
         const shoppingListStatusMap = new Map(shoppingListItems.map(([name, status]) => [name.toLowerCase(), status]));
-
-        const ingredients = generatedIngredients.map(name => {
+        const finalIngredients = Array.from(allIngredients).map(name => {
+            if (!name) return null;
             const nameLower = name.toLowerCase();
             let foundStatus;
-
-            // 1. Check for exact match (case-insensitive)
             foundStatus = shoppingListStatusMap.get(nameLower);
-
-            // 2. If not found, check for plural/singular variations
             if (!foundStatus) {
-                if (nameLower.endsWith('s')) {
-                    // It's plural, check for singular version
-                    foundStatus = shoppingListStatusMap.get(nameLower.slice(0, -1));
-                } else {
-                    // It's singular, check for plural version
-                    foundStatus = shoppingListStatusMap.get(nameLower + 's');
-                }
+                foundStatus = nameLower.endsWith('s')
+                    ? shoppingListStatusMap.get(nameLower.slice(0, -1))
+                    : shoppingListStatusMap.get(nameLower + 's');
             }
+            return { name: name, status: foundStatus || 'Unknown' };
+        }).filter(Boolean); // Filter out any null entries
 
-            return {
-                name: name,
-                status: foundStatus || 'Unknown' // Default to 'Unknown' if no match is found
-            };
-        });
-        // --- End of Smart Matching Logic ---
-
-        res.status(200).json({ menu, ingredients });
+        res.status(200).json({ menu, ingredients: finalIngredients });
     } catch (error) {
-        console.error('ERROR fetching menu and ingredients:', error.message);
+        console.error('ERROR fetching menu and ingredients:', error.message, error.stack);
         res.status(500).send({ error: 'Failed to fetch menu data.' });
     }
 }
 
-// --- Shopping List Functions (Unchanged) ---
+// --- Shopping List Functions ---
 async function getShoppingListItems(req, res) {
     try {
         const sheets = await getSheetsClient();
