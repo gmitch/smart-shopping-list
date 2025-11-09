@@ -1,6 +1,6 @@
 # Google Apps Script
 
-This script provides in-sheet automation for the smart shopping list.
+This optional script provides in-sheet automation for the smart shopping list.
 
 ## Features
 
@@ -9,7 +9,7 @@ This script provides in-sheet automation for the smart shopping list.
 
 ## Installation
 
-1.  Open the Google Sheet.
+1.  Open the Google Sheet where you are storing your Groceries.
 2.  Go to `Extensions > Apps Script`.
 3.  Delete any boilerplate code in the editor.
 4.  Copy the entire contents of the `Code.gs` file and paste it into the editor.
