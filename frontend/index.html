@@ -33,7 +33,8 @@
         #ingredients-check-list li.have::before { content: '✓ '; color: #28a745; font-weight: bold; }
         #ingredients-check-list li.need::before { content: '✗ '; color: #dc3545; font-weight: bold; }
         #ingredients-check-list li.unknown::before { content: '? '; color: #6c757d; font-weight: bold; }
-        #loading { text-align: center; padding: 20px; font-style: italic; color: #777; }
+        .tooltip { position: absolute; background-color: #333; color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; z-index: 1000; pointer-events: none; max-width: 200px; line-height: 1.4; }
+        .tooltip-title { font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid #555; padding-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -85,6 +86,8 @@
     </main>
 </div>
 
+<div id="ingredient-tooltip" class="tooltip" style="display: none;"></div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
@@ -100,9 +103,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuTable = document.getElementById('menu-table');
     const ingredientsListUl = document.getElementById('ingredients-check-list');
     const loadingMenuDiv = document.getElementById('loading-menu');
+    const tooltip = document.getElementById('ingredient-tooltip');
 
     // --- State ---
     let settings = {};
+    let tooltipTimer = null;
 
     // --- Core Functions ---
     const loadSettings = () => {
@@ -132,16 +137,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(`tab-btn-${tabId}`).classList.add('active');
         if (tabId === 'menu' && menuTable.innerHTML === '') fetchAndRenderMenu();
     };
-    
+
     // --- Shopping List Functions ---
     const fetchAndRenderList = async () => {
         if (!settings.apiUrl || !settings.apiKey) return;
         loadingListDiv.style.display = 'block';
         shoppingListUl.innerHTML = '';
         try {
-            const response = await fetch(`${settings.apiUrl}?list=items`, {
-                headers: { 'x-api-key': settings.apiKey }
-            });
+            const response = await fetch(`${settings.apiUrl}?list=items`, { headers: { 'x-api-key': settings.apiKey } });
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             const allItems = await response.json();
             renderList(allItems);
@@ -175,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
             shoppingListUl.appendChild(li);
         });
     };
-    
+
     const populateStoreFilter = (allItems) => {
         const stores = [...new Set(allItems.map(item => item.preferredStore))];
         while (storeFilter.options.length > 1) { storeFilter.remove(1); }
@@ -199,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Could not update item status.");
         }
     };
-    
+
     // --- Menu & Ingredients Functions ---
     const fetchAndRenderMenu = async () => {
         if (!settings.apiUrl || !settings.apiKey) return;
@@ -207,9 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ingredientsListUl.innerHTML = '';
         menuTable.innerHTML = '';
         try {
-            const response = await fetch(`${settings.apiUrl}?list=menu`, {
-                headers: { 'x-api-key': settings.apiKey }
-            });
+            const response = await fetch(`${settings.apiUrl}?list=menu`, { headers: { 'x-api-key': settings.apiKey } });
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             const { menu, ingredients } = await response.json();
             renderMenu(menu);
@@ -230,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         html += '</tbody>';
         menuTable.innerHTML = html;
     };
-    
+
     const renderIngredients = (ingredients) => {
         ingredientsListUl.innerHTML = '';
         if (ingredients.length === 0) {
@@ -242,6 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             li.className = item.status.toLowerCase();
             li.dataset.itemName = item.name;
             li.dataset.itemStatus = item.status;
+            li.dataset.sources = JSON.stringify(item.sources);
             ingredientsListUl.appendChild(li);
         });
     };
@@ -256,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSettings(apiUrlInput.value.trim(), apiKeyInput.value.trim());
     });
 
-     addItemForm.addEventListener('submit', async (e) => {
+    addItemForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const itemName = itemNameInput.value.trim();
         if (!itemName) return;
@@ -281,27 +283,41 @@ document.addEventListener('DOMContentLoaded', () => {
             updateItemStatus(li.dataset.itemName, newStatus);
         }
     });
-    
-    // --- UPDATED Event Listener for Ingredients List ---
+
     ingredientsListUl.addEventListener('click', (e) => {
         const li = e.target.closest('li');
         if (li && li.dataset.itemName) {
             const currentStatus = li.dataset.itemStatus;
             let newStatus;
-
-            if (currentStatus === 'Have') {
-                newStatus = 'Need'; // If you have it, toggle to needing it.
-            } else if (currentStatus === 'Need') {
-                newStatus = 'Have'; // If you need it, toggle to having it.
-            } else if (currentStatus === 'Unknown') {
-                newStatus = 'Need'; // If unknown, add it to the list as 'Need'.
-            }
-
+            if (currentStatus === 'Have') newStatus = 'Need';
+            else if (currentStatus === 'Need') newStatus = 'Have';
+            else if (currentStatus === 'Unknown') newStatus = 'Need';
             if (newStatus) {
                 li.classList.add('updating');
                 updateItemStatus(li.dataset.itemName, newStatus);
             }
         }
+    });
+
+    ingredientsListUl.addEventListener('mouseover', (e) => {
+        const li = e.target.closest('li');
+        if (li && li.dataset.sources) {
+            tooltipTimer = setTimeout(() => {
+                const sources = JSON.parse(li.dataset.sources);
+                tooltip.innerHTML = `<div class="tooltip-title">Needed for:</div>${sources.join('<br>')}`;
+                tooltip.style.display = 'block';
+            }, 3000);
+        }
+    });
+
+    ingredientsListUl.addEventListener('mouseout', () => {
+        clearTimeout(tooltipTimer);
+        tooltip.style.display = 'none';
+    });
+
+    ingredientsListUl.addEventListener('mousemove', (e) => {
+        tooltip.style.left = `${e.pageX + 15}px`;
+        tooltip.style.top = `${e.pageY + 15}px`;
     });
 
     loadSettings();
