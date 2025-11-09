@@ -30,7 +30,6 @@
         #ingredients-check-list { list-style: none; padding: 0; columns: 2; -webkit-columns: 2; -moz-columns: 2; }
         #ingredients-check-list li { padding: 8px; cursor: pointer; border-radius: 5px; transition: background-color 0.2s; }
         #ingredients-check-list li:hover { background-color: #f0f0f0; }
-        /* --- NEW Visual Indicators --- */
         #ingredients-check-list li.have::before { content: '✓ '; color: #28a745; font-weight: bold; }
         #ingredients-check-list li.need::before { content: '✗ '; color: #dc3545; font-weight: bold; }
         #ingredients-check-list li.unknown::before { content: '? '; color: #6c757d; font-weight: bold; }
@@ -85,6 +84,7 @@
         </div>
     </main>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             settings = JSON.parse(savedSettings);
             apiUrlInput.value = settings.apiUrl;
             apiKeyInput.value = settings.apiKey;
-            fetchAndRenderList(); // Load initial tab content
+            fetchAndRenderList();
         } else {
             switchTab('settings');
         }
@@ -130,7 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tabButtons.forEach(button => button.classList.remove('active'));
         document.getElementById(`tab-content-${tabId}`).classList.add('active');
         document.getElementById(`tab-btn-${tabId}`).classList.add('active');
-        // Fetch data if switching to a new tab that needs it
         if (tabId === 'menu' && menuTable.innerHTML === '') fetchAndRenderMenu();
     };
     
@@ -193,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ itemName, status: newStatus })
             });
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            // Refresh both lists for consistency
             fetchAndRenderList();
             fetchAndRenderMenu();
         } catch (error) {
@@ -284,11 +282,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // --- UPDATED Event Listener for Ingredients List ---
     ingredientsListUl.addEventListener('click', (e) => {
         const li = e.target.closest('li');
-        if (li && li.dataset.itemName && (li.dataset.itemStatus === 'Need' || li.dataset.itemStatus === 'Unknown')) {
-            li.classList.add('updating');
-            updateItemStatus(li.dataset.itemName, 'Have');
+        if (li && li.dataset.itemName) {
+            const currentStatus = li.dataset.itemStatus;
+            let newStatus;
+
+            if (currentStatus === 'Have') {
+                newStatus = 'Need'; // If you have it, toggle to needing it.
+            } else if (currentStatus === 'Need') {
+                newStatus = 'Have'; // If you need it, toggle to having it.
+            } else if (currentStatus === 'Unknown') {
+                newStatus = 'Need'; // If unknown, add it to the list as 'Need'.
+            }
+
+            if (newStatus) {
+                li.classList.add('updating');
+                updateItemStatus(li.dataset.itemName, newStatus);
+            }
         }
     });
 
