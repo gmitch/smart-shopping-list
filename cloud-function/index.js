@@ -156,3 +156,57 @@ async function getShoppingListItems(req, res) {
         res.status(500).send({ error: 'Failed to fetch shopping list.' });
     }
 }
+
+async function addOrUpdateShoppingListItem(req, res) {
+    const { itemName, status } = req.body;
+    if (!itemName || itemName.trim() === '') {
+        return res.status(400).send({ error: 'Item name cannot be empty.' });
+    }
+    const normalizedItemName = itemName.trim();
+    const now = new Date().toISOString();
+    try {
+        const sheets = await getSheetsClient();
+        const getRowsResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Groceries!A3:E',
+        });
+        const rows = getRowsResponse.data.values || [];
+        const itemIndex = rows.findIndex(
+            (row) => row[0] && row[0].toLowerCase() === normalizedItemName.toLowerCase()
+        );
+        if (itemIndex !== -1) {
+            const rowIndexToUpdate = itemIndex + 3;
+            if (status) {
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID, range: `Groceries!B${rowIndexToUpdate}:C${rowIndexToUpdate}`,
+                    valueInputOption: 'USER_ENTERED', resource: { values: [[status, now]] },
+                });
+            } else {
+                const currentAddCount = parseInt(rows[itemIndex][3], 10) || 0;
+                await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID, range: `Groceries!B${rowIndexToUpdate}:D${rowIndexToUpdate}`,
+                    valueInputOption: 'USER_ENTERED', resource: { values: [['Need', now, currentAddCount + 1]] },
+                });
+            }
+        } else if (!status) {
+            await sheets.spreadsheets.values.append({
+                spreadsheetId: SPREADSHEET_ID, range: 'Groceries!A:E',
+                valueInputOption: 'USER_ENTERED', resource: { values: [[normalizedItemName, 'Need', now, 1]] },
+            });
+        }
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: { requests: [{ sortRange: {
+                range: { sheetId: 0, startRowIndex: 2 },
+                sortSpecs: [
+                    { dimensionIndex: 1, sortOrder: 'DESCENDING' },
+                    { dimensionIndex: 0, sortOrder: 'ASCENDING' },
+                ],
+            }}]},
+        });
+        res.status(200).send({ success: true });
+    } catch (error) {
+        console.error('ERROR updating item:', error);
+        res.status(500).send({ error: 'An internal error occurred.' });
+    }
+}
