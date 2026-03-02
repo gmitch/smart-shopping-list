@@ -5,6 +5,7 @@
 # Credentials & Secrets
 *.json
 !.vscode/settings.json
+!cloud-function/package.json
 
 # Logs
 logs

@@ -99,13 +99,35 @@ async function addShoppingListItem(req, res) {
 
     if (itemIndex !== -1) { // Item Found (Update)
       const rowIndexToUpdate = itemIndex + 3; // +3 for 1-based index and 2 header rows
-      const currentAddCount = parseInt(rows[itemIndex][3], 10) || 0;
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `Groceries!B${rowIndexToUpdate}:D${rowIndexToUpdate}`,
-        valueInputOption: 'USER_ENTERED',
-        resource: { values: [['Need', now, currentAddCount + 1]] },
-      });
+      const status = req.body.status;
+      const currentStatus = rows[itemIndex][1] || 'Need';
+      
+      if (status) {
+          if (currentStatus === 'Have' && status === 'Need') {
+              const currentAddCount = parseInt(rows[itemIndex][3], 10) || 0;
+              await sheets.spreadsheets.values.update({
+                  spreadsheetId: SPREADSHEET_ID,
+                  range: `Groceries!B${rowIndexToUpdate}:D${rowIndexToUpdate}`,
+                  valueInputOption: 'USER_ENTERED',
+                  resource: { values: [[status, now, currentAddCount + 1]] },
+              });
+          } else {
+              await sheets.spreadsheets.values.update({
+                  spreadsheetId: SPREADSHEET_ID,
+                  range: `Groceries!B${rowIndexToUpdate}:C${rowIndexToUpdate}`,
+                  valueInputOption: 'USER_ENTERED',
+                  resource: { values: [[status, now]] },
+              });
+          }
+      } else {
+          const currentAddCount = parseInt(rows[itemIndex][3], 10) || 0;
+          await sheets.spreadsheets.values.update({
+              spreadsheetId: SPREADSHEET_ID,
+              range: `Groceries!B${rowIndexToUpdate}:D${rowIndexToUpdate}`,
+              valueInputOption: 'USER_ENTERED',
+              resource: { values: [['Need', now, currentAddCount + 1]] },
+          });
+      }
     } else { // Item Not Found (Append)
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,

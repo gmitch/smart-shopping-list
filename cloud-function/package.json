@@ -1,0 +1,18 @@
+{
+  "name": "cloud-function",
+  "version": "1.0.0",
+  "description": "This folder contains the serverless Node.js backend for the Smart Shopping List application. It is designed to be deployed as a Google Cloud Function and uses a Google Sheet as its database.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^5.0.2",
+    "cors": "^2.8.6",
+    "google-auth-library": "^10.6.1",
+    "googleapis": "^171.4.0"
+  }
+}

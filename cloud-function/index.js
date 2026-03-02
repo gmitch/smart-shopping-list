@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const cors = require('cors')({origin: true});
+const cors = require('cors')({ origin: true });
 const { GoogleAuth } = require('google-auth-library');
 
 // --- Configuration ---
@@ -60,7 +60,7 @@ async function getMenuAndIngredients(req, res) {
         const dishes = menu.flatMap(day => [day.main, day.side]).filter(dish => dish);
         const recipeRows = recipesResponse.data.values || [];
         const recipeMap = new Map(recipeRows.map(([name, ingredients]) => [name.toLowerCase(), ingredients]));
-        
+
         const ingredientToDishesMap = new Map();
         let dishesForAI = [];
 
@@ -91,7 +91,7 @@ async function getMenuAndIngredients(req, res) {
             if (geminiResponse.ok) {
                 const aiData = await geminiResponse.json();
                 const aiTextResponse = aiData.candidates[0]?.content?.parts[0]?.text || '{}';
-                
+
                 // Clean the response to ensure it's valid JSON
                 const jsonString = aiTextResponse.replace(/```json/g, '').replace(/```/g, '').trim();
                 const aiIngredientsByDish = JSON.parse(jsonString);
@@ -177,10 +177,19 @@ async function addOrUpdateShoppingListItem(req, res) {
         if (itemIndex !== -1) {
             const rowIndexToUpdate = itemIndex + 3;
             if (status) {
-                await sheets.spreadsheets.values.update({
-                    spreadsheetId: SPREADSHEET_ID, range: `Groceries!B${rowIndexToUpdate}:C${rowIndexToUpdate}`,
-                    valueInputOption: 'USER_ENTERED', resource: { values: [[status, now]] },
-                });
+                const currentStatus = rows[itemIndex][1] || 'Need';
+                if (currentStatus === 'Have' && status === 'Need') {
+                    const currentAddCount = parseInt(rows[itemIndex][3], 10) || 0;
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID, range: `Groceries!B${rowIndexToUpdate}:D${rowIndexToUpdate}`,
+                        valueInputOption: 'USER_ENTERED', resource: { values: [[status, now, currentAddCount + 1]] },
+                    });
+                } else {
+                    await sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID, range: `Groceries!B${rowIndexToUpdate}:C${rowIndexToUpdate}`,
+                        valueInputOption: 'USER_ENTERED', resource: { values: [[status, now]] },
+                    });
+                }
             } else {
                 const currentAddCount = parseInt(rows[itemIndex][3], 10) || 0;
                 await sheets.spreadsheets.values.update({
@@ -196,13 +205,17 @@ async function addOrUpdateShoppingListItem(req, res) {
         }
         await sheets.spreadsheets.batchUpdate({
             spreadsheetId: SPREADSHEET_ID,
-            resource: { requests: [{ sortRange: {
-                range: { sheetId: 0, startRowIndex: 2 },
-                sortSpecs: [
-                    { dimensionIndex: 1, sortOrder: 'DESCENDING' },
-                    { dimensionIndex: 0, sortOrder: 'ASCENDING' },
-                ],
-            }}]},
+            resource: {
+                requests: [{
+                    sortRange: {
+                        range: { sheetId: 0, startRowIndex: 2 },
+                        sortSpecs: [
+                            { dimensionIndex: 1, sortOrder: 'DESCENDING' },
+                            { dimensionIndex: 0, sortOrder: 'ASCENDING' },
+                        ],
+                    }
+                }]
+            },
         });
         res.status(200).send({ success: true });
     } catch (error) {
