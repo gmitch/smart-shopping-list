@@ -38,8 +38,19 @@ function onEdit(e) {
   } 
   // CASE 2: The "Status" column was changed in a data row.
   else if (editedColumn === STATUS_COLUMN_NUMBER && editedRow >= DATA_START_ROW) {
-    // Just sort the sheet, no other action is needed.
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    const now = new Date().toISOString();
+    
+    if (e.oldValue === 'Have' && e.value === 'Need') {
+      const addCountRange = sheet.getRange(editedRow, 4); // Column D is 4th column
+      const currentAddCount = parseInt(addCountRange.getValue(), 10) || 0;
+      // Update LastModified (Col C) and AddCount (Col D)
+      sheet.getRange(editedRow, 3, 1, 2).setValues([[now, currentAddCount + 1]]);
+    } else if (e.value === 'Have' || e.value === 'Need') {
+      // Just update LastModified (Col C)
+      sheet.getRange(editedRow, 3).setValue(now);
+    }
+    
     sortSheet(sheet);
   }
 }
