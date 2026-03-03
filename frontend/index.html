@@ -323,6 +323,11 @@
                     const response = await fetch(`${settings.apiUrl}?list=items`, { headers: { 'x-api-key': settings.apiKey } });
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     const allItems = await response.json();
+                    allItems.forEach(item => {
+                        if (item.preferredStore) {
+                            item.preferredStore = item.preferredStore.trim();
+                        }
+                    });
                     cachedItems = allItems;
                     renderList(allItems);
                     populateStoreFilter(allItems);
