@@ -230,6 +230,11 @@
                     <select id="store-filter">
                         <option value="all">All Stores</option>
                     </select>
+                    <div style="display: flex; align-items: center; margin-left: 15px;">
+                        <input type="checkbox" id="hot-items-toggle" style="width: auto; margin: 0 5px 0 0;">
+                        <label for="hot-items-toggle" style="white-space: nowrap; font-size: 14px; color: #555;">Hot
+                            Items</label>
+                    </div>
                 </div>
                 <form id="add-item-form">
                     <input type="text" id="item-name-input" placeholder="Add a new item..." autocomplete="off">
@@ -342,7 +347,17 @@
             const renderList = (allItems) => {
                 shoppingListUl.innerHTML = '';
                 const selectedStore = storeFilter.value;
-                const filteredItems = selectedStore === 'all' ? allItems : allItems.filter(item => item.preferredStore === selectedStore);
+                const isHotItems = document.getElementById('hot-items-toggle').checked;
+
+                let filteredItems = selectedStore === 'all' ? allItems : allItems.filter(item => item.preferredStore === selectedStore);
+
+                if (isHotItems) {
+                    const needItems = filteredItems.filter(i => i.status === 'Need');
+                    const haveItems = filteredItems.filter(i => i.status === 'Have');
+                    haveItems.sort((a, b) => (b.addCount || 0) - (a.addCount || 0));
+                    filteredItems = [...needItems, ...haveItems];
+                }
+
                 if (filteredItems.length === 0) {
                     shoppingListUl.innerHTML = '<li>No items to show.</li>'; return;
                 }
@@ -353,6 +368,12 @@
                     li.dataset.itemStatus = item.status;
                     const itemNameSpan = document.createElement('span');
                     itemNameSpan.textContent = item.itemName;
+                    if (isHotItems && item.status === 'Have' && item.addCount > 1) {
+                        const countSpan = document.createElement('span');
+                        countSpan.textContent = ` 🔥${item.addCount}`;
+                        countSpan.style.fontSize = '0.8em';
+                        itemNameSpan.appendChild(countSpan);
+                    }
                     const storeSpan = document.createElement('span');
                     storeSpan.className = 'item-store';
                     storeSpan.textContent = item.preferredStore;
@@ -440,6 +461,12 @@
                     renderList(cachedItems);
                 } else {
                     fetchAndRenderList();
+                }
+            });
+
+            document.getElementById('hot-items-toggle').addEventListener('change', () => {
+                if (cachedItems.length > 0) {
+                    renderList(cachedItems);
                 }
             });
 
